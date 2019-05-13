@@ -8,7 +8,8 @@
 #include "autoclose.h"
 #include "configio.h"
 
-mystring program_path(const char* program);
+extern mystring program_path(const char* program);
+extern bool daemon_lock(const char* progname,bool lockmode);
 
 #define REDIRECT_NONE -1
 #define REDIRECT_NULL -2

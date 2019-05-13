@@ -41,4 +41,5 @@ defines.cc: Makefile make_defines.sh
 		@sysconfdir@/nullmailer \
 		@libexecdir@/nullmailer \
 		@bindir@ \
-		@sbindir@
+		@sbindir@ \
+		@localstatedir@/run

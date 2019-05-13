@@ -30,6 +30,7 @@ mystring config_CONFIG_DIR;
 mystring config_HOME_DIR;
 mystring config_PROTOCOLS_DIR;
 mystring config_SBIN_DIR;
+mystring config_LOCK_DIR;
 
 static mystring test_prefix;
 static bool initialized = false;

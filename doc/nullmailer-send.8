@@ -3,6 +3,7 @@
 nullmailer-send \- Send queued messages
 .SH SYNOPSIS
 .B nullmailer-send
+.RB [ \-\-daemon ]\ [ \-\-syslog ]
 .SH DESCRIPTION
 This program is responsible for coordinating the transmission of
 messages that have been queued by
@@ -49,6 +50,15 @@ When all the remotes have been tried,
 sleeps for a number of seconds specified by
 .B pausetime
 before retrying sending the contents of the queue.
+.SH OPTIONS
+.TP
+.BR \-d ,\  \-\-daemon
+Fork into the background, implies \-\-syslog.
+.TP
+.BR \-s ,\  \-\-syslog
+Use syslog for error and log messages.
+With \-\-daemon, syslog will be used exclusively, without \-\-daemon,
+syslog will be used additionally.
 .SH CONTROL FILES
 All the control files are reread each time the queue is run.
 .TP

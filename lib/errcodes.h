@@ -29,6 +29,15 @@
 
 #define ERR_PERMANENT_FLAG 32
 
+#include	<sstream>
+#include	<mystring/mystring.h>
+
+extern	int use_syslog;
+extern	int daemonize;
+
+
 extern const char* errorstr(int);
 
+extern void report(mystring msg);
+extern void reporterror(mystring msg,mystring strerrno);
 #endif // NULLMAILER__ERRCODES__H__

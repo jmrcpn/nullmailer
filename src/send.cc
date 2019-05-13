@@ -20,6 +20,7 @@
 // <nullmailer-subscribe@lists.untroubled.org>.
 
 #include "config.h"
+#include <sstream>
 #include <ctype.h>
 #include <dirent.h>
 #include <errno.h>
@@ -27,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -38,6 +40,7 @@
 #include "defines.h"
 #include "errcodes.h"
 #include "fdbuf/fdbuf.h"
+#include "cli++/cli++.h"
 #include "forkexec.h"
 #include "hostname.h"
 #include "itoa.h"
@@ -46,6 +49,19 @@
 #include "setenv.h"
 
 const char* cli_program = "nullmailer-send";
+const char* cli_help_prefix = "nullmailer daemon\n";
+const char* cli_help_suffix = "";
+const char* cli_args_usage  = "";
+const int cli_args_min = 0;
+const int cli_args_max = 0;
+
+cli_option cli_options[] = {
+  { 'd', "daemon", cli_option::flag, 1, &daemonize,  "daemonize , implies --syslog", 0 },
+  { 's', "syslog", cli_option::flag, 1, &use_syslog, "use syslog", 0 },
+  { 0, 0, cli_option::flag, 0, 0, 0, 0 }
+};
+
+
 
 selfpipe selfpipe;
 
@@ -59,14 +75,6 @@ struct message
 
 typedef list<mystring> slist;
 typedef list<struct message> msglist;
-
-#define msg1(MSG) do{ fout << MSG << endl; }while(0)
-#define msg2(MSG1,MSG2) do{ fout << MSG1 << MSG2 << endl; }while(0)
-#define msg1sys(MSG) do{ fout << MSG << strerror(errno) << endl; }while(0)
-#define fail(MSG) do { msg1(MSG); return false; } while(0)
-#define fail2(MSG1,MSG2) do{ msg2(MSG1,MSG2); return false; }while(0)
-#define fail1sys(MSG) do{ msg1sys(MSG); return false; }while(0)
-#define tempfail1sys(MSG) do{ msg1sys(MSG); return tempfail; }while(0)
 
 static mystring trigger_path;
 static mystring msg_dir;
@@ -104,6 +112,9 @@ remote::remote(const slist& lst)
       options += '\n';
     }
   }
+  options += "-d\n";
+  if (use_syslog==true)
+    options += "-s\n";
   options += '\n';
   program = CONFIG_PATH(PROTOCOLS, NULL, proto.c_str());
 }
@@ -119,6 +130,7 @@ static int maxpause = 24*60*60;
 static int sendtimeout = 60*60;
 static int queuelifetime = 7*24*60*60;
 
+//***********************************************************************
 bool load_remotes()
 {
   slist rtmp;
@@ -133,7 +145,7 @@ bool load_remotes()
     remotes.append(remote(parts));
   }
   if (remotes.count() == 0)
-    fail("No remote hosts listed for delivery");
+    (void) report("No remote hosts listed for delivery");
   return true;
 }
 
@@ -173,10 +185,12 @@ void catch_alrm(int)
 bool load_messages()
 {
   reload_messages = false;
-  fout << "Rescanning queue." << endl;
+  (void) report("Rescanning queue.");
   DIR* dir = opendir(".");
-  if(!dir)
-    fail1sys("Cannot open queue directory: ");
+  if(!dir) {
+    (void) reporterror("Cannot open queue directory: ",strerror(errno));
+    return false;
+    }
   messages.empty();
   struct dirent* entry;
   while((entry = readdir(dir)) != 0) {
@@ -200,13 +214,15 @@ tristate catchsender(fork_exec& fp)
   for (;;) {
     switch (selfpipe.waitsig(sendtimeout)) {
     case 0:			// timeout
-      fout << "Sending timed out, killing protocol" << endl;
+      (void) report("Sending timed out, killing protocol");
       fp.kill(SIGTERM);
       selfpipe.waitsig();	// catch the signal from killing the child
       return tempfail;
+      break;
     case -1:
-      msg1sys("Error waiting for the child signal: ");
-      return tempfail;
+      (void) reporterror("Error waiting for the child signal: ",strerror(errno));
+      return permfail;
+      break;
     case SIGCHLD:
       break;
     default:
@@ -225,16 +241,16 @@ tristate catchsender(fork_exec& fp)
     if(WIFEXITED(status)) {
       status = WEXITSTATUS(status);
       if(status) {
-	fout << "Sending failed: " << errorstr(status) << endl;
+        (void) reporterror("Sending failed: ",errorstr(status));
 	return (status & ERR_PERMANENT_FLAG) ? permfail : tempfail;
       }
       else {
-	fout << "Sent file." << endl;
+	(void) report("Sent file.");
 	return success;
       }
     }
     else {
-      fout << "Sending process crashed or was killed." << endl;
+      (void) report("Sending process crashed or was killed.");
       return tempfail;
     }
   }
@@ -242,10 +258,14 @@ tristate catchsender(fork_exec& fp)
 
 bool log_msg(mystring& filename, remote& remote, int fd)
 {
-  fout << "Starting delivery:"
-       << " host: " << remote.host
-       << " protocol: " << remote.proto
-       << " file: " << filename << endl;
+  mystring ss;
+
+
+  ss  = "Starting delivery:";
+  ss += " host: " + remote.host;
+  ss += " protocol: " + remote.proto;
+  ss += " file: " + filename;
+  (void) report(ss);
   fdibuf in(fd);
   mystring line;
   mystring msg;
@@ -263,17 +283,17 @@ bool log_msg(mystring& filename, remote& remote, int fd)
       msg += line;
       msg += '>';
     }
-    fout << msg << endl;
+    (void) report(msg);
     while (in.getline(line, '\n')) {
       if (!line)
         break;
       if (line.left(11).lower() == "message-id:")
-        fout << line << endl;
+        (void) report(line);
     }
     lseek(fd, 0, SEEK_SET);
     return true;
   }
-  fout << endl << "Can't read message" << endl;
+  (void) report("Error, Can't read message");
   return false;
 }
 
@@ -302,12 +322,12 @@ tristate send_one(mystring filename, remote& remote, mystring& output)
     return tempfail;
 
   if (write(redirs[0], remote.options.c_str(), remote.options.length()) != (ssize_t)remote.options.length())
-    fout << "Warning: Writing options to protocol failed" << endl;
+    (void) report("Warning: Writing options to protocol failed");
   close(redirs[0]);
 
   tristate result = catchsender(fp);
   if (!copy_output(redirs[1], output))
-    fout << "Warning: Could not read output from protocol" << endl;
+    (void) report("Warning: Could not read output from protocol");
   close(redirs[1]);
   return result;
 }
@@ -377,18 +397,19 @@ bool bounce_msg(const message& msg, const remote& remote, const mystring& output
 
 void send_all()
 {
+  std::stringstream ss;
   if(!load_config()) {
-    fout << "Could not load the config" << endl;
+    (void) report("Could not load the config");
     return;
   }
   if(remotes.count() <= 0) {
-    fout << "No remote hosts listed for delivery";
+    (void) report("No remote hosts listed for delivery");
     return;
   }
   if(messages.count() == 0)
     return;
-  fout << "Starting delivery, "
-       << itoa(messages.count()) << " message(s) in queue." << endl;
+  ss << "Starting delivery, " << itoa(messages.count()) << " message(s) in queue.";
+  (void) report(ss.str().c_str());
   mystring output;
   for(rlist::iter remote(remotes); remote; remote++) {
     msglist::iter msg(messages);
@@ -418,9 +439,11 @@ void send_all()
 	  messages.remove(msg);
       }
     }
+  ss.str("");
+  ss << "Delivery complete, "
+       << itoa(messages.count()) << " message(s) remain.";
+  (void) report(ss.str().c_str());
   }
-  fout << "Delivery complete, "
-       << itoa(messages.count()) << " message(s) remain." << endl;
 }
 
 static int trigger;
@@ -434,8 +457,10 @@ bool open_trigger()
 #ifdef NAMEDPIPEBUG
   trigger2 = open(trigger_path.c_str(), O_WRONLY|O_NONBLOCK);
 #endif
-  if(trigger == -1)
-    fail1sys("Could not open trigger file: ");
+  if(trigger == -1) {
+    (void) reporterror("Could not open trigger file: ",strerror(errno));
+    return false;
+    }
   return true;
 }
 
@@ -470,13 +495,15 @@ bool do_select()
 
   int s = select(trigger+1, &readfds, 0, 0, &timeout);
   if(s == 1) {
-    fout << "Trigger pulled." << endl;
+    (void) report("Trigger pulled.");
     read_trigger();
     reload_messages = true;
     pausetime = minpause;
   }
-  else if(s == -1 && errno != EINTR)
-    fail1sys("Internal error in select: ");
+  else if(s == -1 && errno != EINTR) {
+    (void) reporterror("Internal error in select: ",strerror(errno));
+    return false;
+    }
   else if(s == 0)
     reload_messages = true;
   if(reload_messages)
@@ -484,34 +511,60 @@ bool do_select()
   return true;
 }
 
-int main(int, char*[])
+int cli_main(int, char*[])
 {
+  pid_t pid;
   trigger_path = CONFIG_PATH(QUEUE, NULL, "trigger");
   msg_dir = CONFIG_PATH(QUEUE, NULL, "queue");
 
+  if (daemonize==true)
+    use_syslog=true;
+  if (use_syslog==true)
+    (void) openlog(cli_program,LOG_PID,LOG_MAIL);
   read_hostnames();
 
-  if(!selfpipe) {
-    fout << "Could not set up self-pipe." << endl;
+  if (!selfpipe) {
+    (void) report("Could not set up self-pipe.");
     return 1;
   }
   selfpipe.catchsig(SIGCHLD);
   
-  if(!open_trigger())
-    return 1;
-  if(chdir(msg_dir.c_str()) == -1) {
-    fout << "Could not chdir to queue message directory." << endl;
+  if (!open_trigger()) {
+    (void) report("Could not open trigger");
     return 1;
   }
-  
+  if(chdir(msg_dir.c_str()) == -1) {
+    (void) report("Could not chdir to queue message directory.");
+    return 1;
+  }
+ 
+  if (daemonize==true) {
+   switch (pid=fork()) {
+     case -1	:	/*unable to fork	*/
+       (void) syslog(LOG_CRIT, "Could not fork.");
+       return 1;
+       break;
+     case 0	:	/*the forked process	*/
+       (void) close(STDIN_FILENO);
+       (void) close(STDOUT_FILENO);
+       (void) close(STDERR_FILENO);
+       break;
+     default	:	/*The parent process	*/
+       return 0;
+       break;
+     }
+   }
   signal(SIGALRM, catch_alrm);
   signal(SIGHUP, SIG_IGN);
-  load_config();
-  load_messages();
-  for(;;) {
-    send_all();
-    if (minpause == 0) break;
-    do_select();
-  }
+  if (daemon_lock(cli_program,true)==true) {
+    load_config();
+    load_messages();
+    for(;;) {
+      send_all();
+      if (minpause == 0) break;
+      do_select();
+    }
+    (void) daemon_lock(cli_program,false);
+    }
   return 0;
 }

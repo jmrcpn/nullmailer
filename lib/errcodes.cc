@@ -19,7 +19,13 @@
 // available to discuss this package.  To subscribe, send an email to
 // <nullmailer-subscribe@lists.untroubled.org>.
 
+#include <sstream>
+#include <sys/syslog.h>
+#include "fdbuf/fdbuf.h"
 #include "errcodes.h"
+
+int use_syslog=false;
+int daemonize=false;
 
 const char* errorstr(int code)
 {
@@ -49,4 +55,32 @@ const char* errorstr(int code)
   return (code & ERR_PERMANENT_FLAG)
     ? "Unspecified permanent error"
     : "Unspecified temporary error";
+}
+
+//***********************************************************************
+//Report message to syslog or/and to console output
+//***********************************************************************
+void report(mystring msg)
+
+{
+char *mark;
+
+mark="";
+if (use_syslog==true) {
+  (void) syslog(LOG_INFO,msg.c_str());
+  mark="CONS: ";
+  }
+if (daemonize==false)
+  fout << mark << msg << endl;
+}
+//***********************************************************************
+//Report message adding the errno value
+//***********************************************************************
+void reporterror(mystring msg,mystring strerrno)
+
+{
+std::stringstream ms;
+
+ms << msg.c_str() <<" error=<" << strerrno.c_str() << ">";
+(void) report(ms.str().c_str());
 }

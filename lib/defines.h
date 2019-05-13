@@ -6,6 +6,7 @@ extern const char CONFIG_DIR[];
 extern const char PROTOCOLS_DIR[];
 extern const char BIN_DIR[];
 extern const char SBIN_DIR[];
+extern const char LOCK_DIR[];
 
 #define QUEUE_TEST_DIR "queue"
 #define CONFIG_TEST_DIR "conf"

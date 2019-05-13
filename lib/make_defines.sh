@@ -5,4 +5,5 @@
 	echo "extern const char PROTOCOLS_DIR[]=\"$3\";"
 	echo "extern const char BIN_DIR[]=\"$4\";"
 	echo "extern const char SBIN_DIR[]=\"$5\";"
+	echo "extern const char LOCK_DIR[]=\"$6\";"
 ) > defines.cc

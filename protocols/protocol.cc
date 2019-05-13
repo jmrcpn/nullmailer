@@ -19,9 +19,11 @@
 // available to discuss this package.  To subscribe, send an email to
 // <nullmailer-subscribe@lists.untroubled.org>.
 
+#include <sstream>
 #include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/syslog.h>
 #include "connect.h"
 #include "errcodes.h"
 #include "list.h"
@@ -76,20 +78,28 @@ cli_option cli_options[] = {
   { 0, "tls-anon-auth", cli_option::flag, true, &tls_anon_auth,
     "Use TLS anonymous authentication - needs --insecure option", 0 },
 #endif
+  { 'd', "daemon", cli_option::flag, 1, &daemonize,  "daemonize , implies --syslog", 0 },
+  { 's', "syslog", cli_option::flag, 1, &use_syslog, "use syslog", 0 },
   {0, 0, cli_option::flag, 0, 0, 0, 0}
 };
 
 void protocol_fail(int e, const char* msg)
 {
-  fout << msg << endl;
-  ferr << cli_program << ": Failed: " << msg << endl;
+  std::stringstream ms;
+
+  ms << cli_program << ": Failed: " << msg;
+  //fout << msg << endl;
+  (void) report(ms.str().c_str());
   exit(e);
 }
 
 void protocol_succ(const char* msg)
 {
-  fout << msg << endl;
-  ferr << cli_program << ": Succeeded: " << msg << endl;
+  std::stringstream ms;
+
+  ms << cli_program << ": Succeeded: " << msg;
+  //fout << msg << endl;
+  (void) report(ms.str().c_str());
   exit(0);
 }
 
@@ -134,6 +144,8 @@ static void parse_options(void)
 int cli_main(int, char*[])
 {
   parse_options();
+  if (use_syslog==true)
+    (void) openlog("nullmailer.proto", LOG_CONS|LOG_PID,LOG_MAIL);
   if (remote == 0)
     protocol_fail(ERR_USAGE, "Remote host not set");
   if (port == 0)

@@ -166,3 +166,82 @@ int queue_pipe::start()
     return -1;
   return redirs[0];
 }
+//***********************************************************************
+//check/lock daemon, to be sure to be the only one
+//***********************************************************************
+bool daemon_lock(const char* progname,bool lockmode)
+
+{
+int done;
+char *fullname;
+
+done=false;
+(void) asprintf(&fullname,"%s/%s.pid",LOCK_DIR,progname);
+if (lockmode==true) {
+  struct flock lock;
+  int fd;
+  FILE *fichier;
+  int proceed;
+  int phase;
+
+  fd=0;
+  fichier=(FILE *)0;
+  proceed=true;
+  phase=0;
+  while (proceed==true) {
+    switch (phase) {
+      case 0	:	/*is lock file existing?*/
+        if ((fichier=fopen(fullname,"r"))!=(FILE *)0) {
+	  pid_t curpid;
+
+	  if (fscanf(fichier,"%d",&curpid)==1) {
+	    if (kill(curpid,0)<0)
+	      (void) unlink(fullname);
+	    else {
+	      char *info;
+
+	      (void) asprintf(&info,"%s, found up and running (pid='%d') ",
+			      	     progname,curpid);
+	      (void) report(info);
+	      (void) free(info);
+	      phase=999;/*quick abort		*/
+	      }
+	    }
+	  (void) fclose(fichier);
+	  }
+	break;
+      case 1	:	/*opening lock file	*/
+	if ((fd=open(fullname,O_RDWR|O_CREAT|O_EXCL))<0) {
+	  (void) reporterror("Unable to open lock file",strerror(errno));
+	  phase=999;	/*aborting fast		*/
+          }
+	break;
+      case 2	:	/*set pid in lockfile	*/
+	(void) dprintf(fd,"%d\n",getpid());
+	lock.l_type=F_WRLCK;
+	lock.l_start=0;
+	lock.l_whence=SEEK_SET;
+	lock.l_len=0;
+	lock.l_pid=getpid();
+	if (fcntl(fd,F_SETLKW,&lock)<0) {
+	  (void) reporterror("Unable to set pid in lock file",strerror(errno));
+	  phase=999;	/*aborting fast		*/
+	  }
+	break;
+      case 3	:	/*everything OK,	*/
+	done=true;
+	break;
+      default	:	/*SAFE Guard		*/
+	proceed=false;
+	break;
+      }
+    phase++;
+    }
+  }
+else {
+  (void) unlink(fullname);
+  done=true;
+  }
+(void) free(fullname);
+return done;
+}
