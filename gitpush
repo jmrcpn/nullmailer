@@ -1,0 +1,10 @@
+#! /bin/sh
+#---------------------------------------------------------
+#script to add, commit and push update
+#---------------------------------------------------------
+git add .
+git commit -a
+BR=`git branch |				\
+	sed -e '/^[^*]/d' -e 's/* //'		\
+   `
+git push --tags origin ${BR}:${BR}
