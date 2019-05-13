@@ -1,4 +1,5 @@
 localstatedir = @localstatedir@/spool/nullmailer
+runlockdir = @localstatedir@/run/nullmailer
 sysconfdir = @sysconfdir@/nullmailer
 
 EXTRA_DIST = BUGS HOWTO INSTALL TODO spec \
@@ -18,6 +19,8 @@ install-data-local:
 	$(RM) -f $(DESTDIR)$(localstatedir)/trigger
 	mkfifo $(DESTDIR)$(localstatedir)/trigger
 	chmod 600 $(DESTDIR)$(localstatedir)/trigger
+	$(mkinstalldirs) $(DESTDIR)$(runlockdir)
+	chmod 700 $(DESTDIR)$(runlockdir)
 
 install-root:
 	chown nullmail $(DESTDIR)$(localstatedir)/*
@@ -25,6 +28,7 @@ install-root:
 	chmod u+s $(DESTDIR)$(sbindir)/nullmailer-queue
 	chown nullmail $(DESTDIR)$(bindir)/mailq
 	chmod u+s $(DESTDIR)$(bindir)/mailq
+	chown nullmail $(DESTDIR)$(runlockdir)
 
 dist-hook:
 	sed -e s/@VERSION\@/@VERSION@/ \

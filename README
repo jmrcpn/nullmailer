@@ -25,7 +25,7 @@ package comes with no warranty of any kind.
 #---------------------------------------------------------------------
 2019 May 13
 
-This is fork to provide syslog capabilties and allow nullmailer
+This is a fork to provide syslog capabilties and allow nullmailer
 to easily run within a sysV system.
 
 #---------------------------------------------------------------------

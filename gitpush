@@ -8,3 +8,4 @@ BR=`git branch |				\
 	sed -e '/^[^*]/d' -e 's/* //'		\
    `
 git push --tags origin ${BR}:${BR}
+git archive --format=tar --prefix=nullmailer-2.2.0/ HEAD | gzip > ./nullmailer-2.2.0.tar.gz
