@@ -458,7 +458,6 @@ bool open_trigger()
   trigger2 = open(trigger_path.c_str(), O_WRONLY|O_NONBLOCK);
 #endif
   if(trigger == -1) {
-    (void) reporterror("JMPDBG trigger: ",trigger_path.c_str());
     (void) reporterror("Could not open trigger file: ",strerror(errno));
     return false;
     }
