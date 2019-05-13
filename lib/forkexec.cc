@@ -211,7 +211,7 @@ if (lockmode==true) {
 	  }
 	break;
       case 1	:	/*opening lock file	*/
-	if ((fd=open(fullname,O_RDWR|O_CREAT|O_EXCL))<0) {
+	if ((fd=open(fullname,O_RDWR|O_CREAT|O_EXCL,0400))<0) {
 	  (void) reporterror("Unable to open lock file",strerror(errno));
 	  phase=999;	/*aborting fast		*/
           }

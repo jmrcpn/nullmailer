@@ -458,6 +458,7 @@ bool open_trigger()
   trigger2 = open(trigger_path.c_str(), O_WRONLY|O_NONBLOCK);
 #endif
   if(trigger == -1) {
+    (void) reporterror("JMPDBG trigger: ",trigger_path.c_str());
     (void) reporterror("Could not open trigger file: ",strerror(errno));
     return false;
     }
@@ -528,16 +529,7 @@ int cli_main(int, char*[])
     return 1;
   }
   selfpipe.catchsig(SIGCHLD);
-  
-  if (!open_trigger()) {
-    (void) report("Could not open trigger");
-    return 1;
-  }
-  if(chdir(msg_dir.c_str()) == -1) {
-    (void) report("Could not chdir to queue message directory.");
-    return 1;
-  }
- 
+
   if (daemonize==true) {
    switch (pid=fork()) {
      case -1	:	/*unable to fork	*/
@@ -554,6 +546,14 @@ int cli_main(int, char*[])
        break;
      }
    }
+  if (!open_trigger()) {
+    (void) report("Could not open trigger");
+    return 1;
+    }
+  if(chdir(msg_dir.c_str()) == -1) {
+    (void) report("Could not chdir to queue message directory.");
+    return 1;
+    }
   signal(SIGALRM, catch_alrm);
   signal(SIGHUP, SIG_IGN);
   if (daemon_lock(cli_program,true)==true) {

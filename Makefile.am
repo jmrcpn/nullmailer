@@ -23,12 +23,12 @@ install-data-local:
 	chmod 700 $(DESTDIR)$(runlockdir)
 
 install-root:
-	chown nullmail $(DESTDIR)$(localstatedir)/*
-	chown nullmail $(DESTDIR)$(sbindir)/nullmailer-queue
+	chown nullmailer $(DESTDIR)$(localstatedir)/*
+	chown nullmailer $(DESTDIR)$(sbindir)/nullmailer-queue
 	chmod u+s $(DESTDIR)$(sbindir)/nullmailer-queue
-	chown nullmail $(DESTDIR)$(bindir)/mailq
+	chown nullmailer $(DESTDIR)$(bindir)/mailq
 	chmod u+s $(DESTDIR)$(bindir)/mailq
-	chown nullmail $(DESTDIR)$(runlockdir)
+	chown nullmailer $(DESTDIR)$(runlockdir)
 
 dist-hook:
 	sed -e s/@VERSION\@/@VERSION@/ \
