@@ -260,7 +260,6 @@ bool log_msg(mystring& filename, remote& remote, int fd)
 {
   mystring ss;
 
-
   ss  = "Starting delivery:";
   ss += " host: " + remote.host;
   ss += " protocol: " + remote.proto;
@@ -339,7 +338,7 @@ static void parse_output(const mystring& output, const remote& remote, mystring&
   diag += output.strip();
   diag.subst('\n', '/');
   status = "5.0.0";
-  for (unsigned i = 0; i < output.length()-5; i++)
+  for (int i = 0; i < ((int)output.length()-5); i++) {
     if (isdigit(output[i])
         && output[i+1] == '.'
         && isdigit(output[i+2])
@@ -347,6 +346,7 @@ static void parse_output(const mystring& output, const remote& remote, mystring&
         && isdigit(output[i+4])) {
       status = output.sub(i, 5);
       break;
+      }
     }
 }
 
@@ -361,20 +361,30 @@ static bool is_bounce(int fd)
 
 bool bounce_msg(const message& msg, const remote& remote, const mystring& output)
 {
+  std::stringstream sr;
+
   mystring failed = "../failed/";
   failed += msg.filename;
-  fout << "Moving message " << msg.filename << " into failed" << endl;
+  sr << "Received status <" << output.c_str() << ">";
+  (void) report(sr.str().c_str());
+  sr.str("");
+  sr << "Moving message " << msg.filename.c_str() << " into failed";
+  (void) report(sr.str().c_str());
   if (rename(msg.filename.c_str(), failed.c_str()) == -1) {
-    fout << "Can't rename file: " << strerror(errno) << endl;
+    (void) reporterror("Can't rename file: ",strerror(errno));
     return false;
   }
   autoclose fd = open(failed.c_str(), O_RDONLY);
-  if (fd < 0)
-    fout << "Can't open file " << failed << " to create bounce message" << endl;
-  else if (is_bounce(fd))
-    fout << "Not generating double bounce for " << msg.filename << "" << endl;
+  if (fd < 0) {
+    sr.str("");
+    sr << "Can't open file " << failed.c_str() << " to create bounce message";
+    (void) report(sr.str().c_str());
+    }
+  else if (is_bounce(fd)) {
+    (void) reporterror("Not generating double bounce for ",msg.filename.c_str());
+    }
   else {
-    fout << "Generating bounce for " << msg.filename << endl;
+    (void) reporterror("Generating bounce for",msg.filename.c_str());
     queue_pipe qp;
     autoclose pfd = qp.start();
     if (pfd > 0) {
