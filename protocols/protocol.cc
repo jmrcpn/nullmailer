@@ -88,7 +88,7 @@ void protocol_fail(int e, const char* msg)
   std::stringstream ms;
 
   ms << cli_program << ": Failed: " << msg;
-  //fout << msg << endl;
+  fout << msg << endl;
   (void) report(ms.str().c_str());
   exit(e);
 }

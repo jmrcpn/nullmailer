@@ -26,12 +26,19 @@
 
 bool config_read(const char* filename, mystring& result)
 {
-  const mystring fullname = CONFIG_PATH(CONFIG, NULL, filename);
-  fdibuf in(fullname.c_str());
-  if (!in)
-    return config_syserr(fullname.c_str());
-  if(!in.getline(result))
-    return false;
+bool good;
+const mystring fullname = CONFIG_PATH(CONFIG, NULL, filename);
+
+fdibuf in(fullname.c_str());
+if (!in)
+  return config_syserr(fullname.c_str());
+good=false;
+while (in.getline(result)==true) {
+  if (result.c_str()[0] == '#')
+    continue;
   result = result.strip();
-  return result.length() > 0;
+  good=(result.length()>0);
+  break;
+  }	  
+return good;
 }

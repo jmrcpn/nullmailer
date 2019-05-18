@@ -63,7 +63,7 @@ const char* errorstr(int code)
 void report(mystring msg)
 
 {
-char *mark;
+const char *mark;
 
 mark="";
 if (use_syslog==true) {
